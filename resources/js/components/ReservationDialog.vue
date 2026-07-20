@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
+import { watch } from 'vue';
 import ReservationController from '@/actions/App/Http/Controllers/ReservationController';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -41,14 +41,6 @@ watch(open, (isOpen) => {
         form.reset();
         form.clearErrors();
     }
-});
-
-const availableInWarehouse = computed(() => {
-    if (!props.line || form.warehouse_id === null) {
-        return null;
-    }
-
-    return props.line.availability[form.warehouse_id] ?? 0;
 });
 
 function submit() {
@@ -98,17 +90,16 @@ function submit() {
                                 :key="warehouse.id"
                                 :value="warehouse.id"
                             >
-                                {{ warehouse.name }} ({{ warehouse.code }})
+                                {{ warehouse.name }} ({{ warehouse.code }}) —
+                                {{
+                                    line
+                                        ? (line.availability[warehouse.id] ?? 0)
+                                        : 0
+                                }}
+                                available
                             </SelectItem>
                         </SelectContent>
                     </Select>
-                    <p
-                        v-if="availableInWarehouse !== null"
-                        class="text-sm text-muted-foreground"
-                    >
-                        Available in this warehouse:
-                        {{ availableInWarehouse }}
-                    </p>
                     <InputError :message="form.errors.warehouse_id" />
                 </div>
 
