@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { Head, setLayoutProps } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import ReservationDialog from '@/components/ReservationDialog.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/currency';
 import { index, show } from '@/routes/orders';
-import type { OrderDetail } from '@/types';
+import type { OrderDetail, OrderLine, Warehouse } from '@/types';
 
 const props = defineProps<{
     order: OrderDetail;
+    warehouses: Warehouse[];
 }>();
+
+const reservationDialogOpen = ref(false);
+const selectedLine = ref<OrderLine | null>(null);
+
+function openReservationDialog(line: OrderLine) {
+    selectedLine.value = line;
+    reservationDialogOpen.value = true;
+}
 
 setLayoutProps({
     breadcrumbs: [
@@ -57,6 +69,9 @@ setLayoutProps({
                             Unit price
                         </th>
                         <th class="px-4 py-3 text-right font-medium">Total</th>
+                        <th class="px-4 py-3 text-right font-medium">
+                            <span class="sr-only">Actions</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -88,13 +103,23 @@ setLayoutProps({
                         <td class="px-4 py-3 text-right tabular-nums">
                             {{ formatCurrency(line.line_total) }}
                         </td>
+                        <td class="px-4 py-3 text-right">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="line.quantity_remaining <= 0"
+                                @click="openReservationDialog(line)"
+                            >
+                                Reserve
+                            </Button>
+                        </td>
                     </tr>
                 </tbody>
                 <tfoot>
                     <tr
                         class="border-t border-sidebar-border/70 bg-muted/50 font-medium"
                     >
-                        <td class="px-4 py-3" colspan="5">Order total</td>
+                        <td class="px-4 py-3" colspan="6">Order total</td>
                         <td class="px-4 py-3 text-right tabular-nums">
                             {{ formatCurrency(order.total) }}
                         </td>
@@ -102,5 +127,11 @@ setLayoutProps({
                 </tfoot>
             </table>
         </div>
+
+        <ReservationDialog
+            v-model:open="reservationDialogOpen"
+            :line="selectedLine"
+            :warehouses="warehouses"
+        />
     </div>
 </template>
