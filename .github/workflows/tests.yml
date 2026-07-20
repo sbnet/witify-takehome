@@ -31,6 +31,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Start MySQL
+        run: docker compose up -d --wait
+
       - name: Setup Application
         run: composer setup
 
