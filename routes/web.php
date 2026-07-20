@@ -3,6 +3,7 @@
 use App\Http\Controllers\InventoryAdjustmentController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    Route::post('reservations', [ReservationController::class, 'store'])->name('reservations.store');
 
     Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
 
