@@ -19,6 +19,7 @@ export type OrderLine = {
     quantity_ordered: number;
     quantity_reserved: number;
     quantity_remaining: number;
+    availability: Record<number, number>;
     unit_price: number;
     line_total: number;
 };

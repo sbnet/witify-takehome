@@ -56,7 +56,7 @@ class ReserveInventory implements Action
                 ->where('warehouse_id', $warehouseId)
                 ->sum('quantity');
 
-            $available = ($balance?->quantity ?? 0) - $reservedInWarehouse;
+            $available = ($balance->quantity ?? 0) - $reservedInWarehouse;
 
             if ($quantity > $available) {
                 throw ValidationException::withMessages([

@@ -19,8 +19,6 @@ class OrderController extends Controller
 
     public function show(Order $order, GetOrderDetails $getOrderDetails): Response
     {
-        return Inertia::render('orders/Show', [
-            'order' => $getOrderDetails->handle($order),
-        ]);
+        return Inertia::render('orders/Show', $getOrderDetails->handle($order));
     }
 }

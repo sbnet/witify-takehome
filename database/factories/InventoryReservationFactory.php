@@ -22,7 +22,8 @@ class InventoryReservationFactory extends Factory
         return [
             'order_line_id' => OrderLine::factory(),
             'product_id' => fn (array $attributes): int => OrderLine::query()
-                ->findOrFail($attributes['order_line_id'])
+                ->whereKey($attributes['order_line_id'])
+                ->firstOrFail()
                 ->product_id,
             'warehouse_id' => Warehouse::factory(),
             'user_id' => null,
