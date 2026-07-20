@@ -55,3 +55,41 @@ npm run format               # Prettier
 
 - Les routes frontend sont générées par [Wayfinder](https://github.com/laravel/wayfinder) : après avoir ajouté des routes Laravel, elles sont régénérées automatiquement par Vite (ou via `php artisan wayfinder:generate`).
 - Les tests s'exécutent contre MySQL : le conteneur Docker doit être démarré.
+
+## Solution — Réservations d'inventaire
+
+### Structure de données
+
+Une table `inventory_reservations` en append-only : chaque réservation est une ligne immuable (`order_line_id`, `product_id`, `warehouse_id`, `user_id`, `quantity`). Réserver deux fois sur la même ligne/entrepôt crée deux enregistrements ; les quantités affichées sont des sommes. `product_id` est dénormalisé depuis la ligne de commande pour que le calcul du disponible (stock physique − somme des réservations du couple produit/entrepôt) soit un agrégat direct sur l'index composite `(product_id, warehouse_id)`, sans jointure sur `order_lines`. L'action `ReserveInventory` garantit l'invariant `product_id` = produit de la ligne.
+
+Conformément à l'énoncé, une réservation ne modifie ni `inventory_balances` ni `inventory_movements`.
+
+### Stratégie de concurrence
+
+Verrouillage pessimiste dans une transaction (`DB::transaction`), avec deux verrous de ligne (`SELECT … FOR UPDATE`) pris dans un ordre constant pour éviter les deadlocks :
+
+1. la ligne `order_lines` — sérialise les réservations concurrentes sur une même ligne de commande (y compris vers des entrepôts différents), protégeant la règle « quantité restante » ;
+2. la ligne `inventory_balances` du couple produit/entrepôt — c'est le même verrou que celui pris par `AdjustInventory` : les réservations se sérialisent donc aussi contre les ajustements de stock, aucun des deux ne peut décider sur une lecture périmée de l'autre.
+
+Les deux règles métier sont revalidées sous verrou, puis l'insertion a lieu dans la même transaction. `attempts: 3` rejoue la transaction en cas de deadlock détecté par MySQL. Si aucune balance n'existe pour le couple, le disponible vaut zéro et la réservation est refusée sans écriture.
+
+Alternative écartée : une contrainte purement applicative type `INSERT … SELECT … WHERE` atomique, plus difficile à lire et incohérente avec le pattern de verrouillage déjà en place dans le projet.
+
+### Performance
+
+La page commande calcule les quantités réservées et disponibles en un nombre de requêtes constant (sommes groupées `SUM … GROUP BY`), quel que soit le nombre de lignes ou d'entrepôts. Index composite `(product_id, warehouse_id)` sur les réservations, plus les index des clés étrangères.
+
+### Hypothèses
+
+- Pas d'annulation, de libération ni de statut : une réservation existe ou n'existe pas (énoncé).
+- Une commande peut être réservée quel que soit son statut.
+- Tous les entrepôts sont proposés dans le dialogue ; un entrepôt sans stock du produit affiche un disponible de zéro et refuse la réservation.
+- `user_id` est conservé à titre d'audit (nullable, comme sur les mouvements).
+
+### Avec davantage de temps
+
+- Libération / annulation de réservations, et libération automatique à l'expédition.
+- Un filet de sécurité en base (colonne `reserved` dénormalisée sur `inventory_balances` avec contrainte `CHECK reserved <= quantity`), le total réservé restant recalculable depuis les réservations.
+- Un test de concurrence automatisé (deux processus parallèles sur le même stock).
+- Restreindre la liste du dialogue aux entrepôts ayant du stock disponible.
+- Une policy d'autorisation dédiée si des rôles apparaissent.
